@@ -43,7 +43,7 @@ onBeforeUnmount(() => scene?.dispose())
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col bg-[#f6f5f1] text-[#111111] antialiased">
+  <div class="mobile-scroll flex min-h-screen lg:h-screen  flex-col bg-[#f6f5f1] text-[#111111] antialiased">
     <header
       class="relative z-30 flex items-center gap-5 border-b border-[#e6e4dc] bg-[#f6f5f1]/85 px-8 py-5.5 backdrop-blur-md"
     >
@@ -223,6 +223,23 @@ onBeforeUnmount(() => scene?.dispose())
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 1023px) {
+  .mobile-scroll::-webkit-scrollbar {
+    width: 6px;
+    display: block;
+  }
+
+  .mobile-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 999px;
+  }
+
+  .mobile-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
   }
 }
 
