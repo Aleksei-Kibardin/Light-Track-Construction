@@ -9,6 +9,7 @@ export function useConfigurator() {
     fixtures: 4,
     temperature: 3000,
     rotation: 0,
+    fractions: false
   })
 
   const price = computed(() =>

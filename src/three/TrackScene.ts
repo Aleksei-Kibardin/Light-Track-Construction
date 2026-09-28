@@ -25,6 +25,7 @@ export class TrackScene {
   private glowTexture = createGlowTexture();
 
   private state: ConfiguratorState;
+  private host: HTMLElement;
   private frame = 0;
   private previousTime = 0;
   private fitDistance: number | null = null;
@@ -55,13 +56,14 @@ export class TrackScene {
   );
 
   constructor(
-    private host: HTMLElement,
+    host: HTMLElement,
     initial: ConfiguratorState,
   ) {
+    this.host = host;
     this.state = { ...initial };
 
     // Если снаружи пришли fractions — забираем их как стартовые
-    if (initial.fractions && initial.fractions.length === 8) {
+    if (Array.isArray(initial.fractions) && initial.fractions.length === 8) {
       this.fractions = [...initial.fractions];
     }
 
@@ -293,7 +295,6 @@ export class TrackScene {
 
     this.state = {
       ...next,
-      fractions: this.fractions,
     };
 
     this.track.setShape(next.trackType, next.length);
@@ -334,7 +335,6 @@ export class TrackScene {
       this.fractions = Array.from({ length: 8 }, (_, i) =>
         i < next.fixtures ? (i + 0.5) / next.fixtures : 0,
       );
-      this.state.fractions = this.fractions;
     }
 
     const finish = finishes[next.color];
@@ -550,7 +550,6 @@ export class TrackScene {
         const t = this.track.project(world);
 
         this.fractions[this.draggingFixture] = t;
-        this.state.fractions = this.fractions;
 
         this.fixtures[this.draggingFixture].group.position.copy(
           this.track.sample(t),
@@ -638,7 +637,7 @@ export class TrackScene {
 
     this.removeButton.style.display = "block";
     this.removeButton.style.left = `${x - 14 + offsetX}px`;
-    this.removeButton.style.top = `${y - 14 + offsetY}px`;
+    this.removeButton.style.top = `${y - 0 + offsetY}px`;
   }
 
   private animate = (time: number) => {

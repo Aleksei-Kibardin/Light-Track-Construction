@@ -2,6 +2,7 @@ export type TrackType = 'line' | 'l' | 'u' | 'p'
 export type Finish = 'black' | 'white' | 'graphite'
 
 export interface ConfiguratorState {
+  fractions: boolean
   trackType: TrackType
   length: number
   color: Finish
