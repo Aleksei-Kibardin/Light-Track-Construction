@@ -70,7 +70,7 @@ onBeforeUnmount(() => scene?.dispose())
         class="relative min-h-[60vh] overflow-hidden bg-[#eeede7] lg:min-h-0"
         aria-label="Предпросмотр трекового освещения"
       >
-        <div ref="host" class="absolute inset-0"></div>
+        <div ref="host" class="absolute inset-0 h-screen"></div>
 
         <div
           class="pointer-events-none absolute left-7 top-8 z-10 max-w-[320px] md:left-10 md:top-10"
