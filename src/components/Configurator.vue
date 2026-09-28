@@ -43,7 +43,7 @@ onBeforeUnmount(() => scene?.dispose())
 </script>
 
 <template>
-  <div class="flex h-screen flex-col bg-[#f6f5f1] text-[#111111] antialiased">
+  <div class="flex min-h-screen flex-col bg-[#f6f5f1] text-[#111111] antialiased">
     <header
       class="relative z-30 flex items-center gap-5 border-b border-[#e6e4dc] bg-[#f6f5f1]/85 px-8 py-5.5 backdrop-blur-md"
     >
@@ -67,7 +67,7 @@ onBeforeUnmount(() => scene?.dispose())
 
     <main class="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px]">
       <section
-        class="relative min-h-[60vh] overflow-hidden bg-[#eeede7] lg:min-h-0"
+        class="relative min-h-[60vh] max-h-screen overflow-hidden bg-[#eeede7] lg:min-h-0"
         aria-label="Предпросмотр трекового освещения"
       >
         <div ref="host" class="absolute inset-0 h-screen"></div>
