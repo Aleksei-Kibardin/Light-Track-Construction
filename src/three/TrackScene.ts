@@ -18,7 +18,7 @@ export class TrackScene {
   private root = new THREE.Group();
   private track: Track;
   private fixtures: Fixture[] = [];
-  private presence = Array<number>(8).fill(0);
+  private presence = Array<number>(MAX_FIXTURES).fill(0);
 
   private metal = new THREE.MeshStandardMaterial();
   private targetColor = new THREE.Color();
@@ -52,19 +52,23 @@ export class TrackScene {
   private buttonHovered = false;
   private removeButton: HTMLButtonElement | null = null;
 
-  // Локальные позиции ламп вдоль трека (0..1). Источник истины — здесь,
-  // чтобы Vue не затирал их своими update().
   private fractions: number[] = Array.from(
-    { length: 8 },
-    (_, i) => (i + 0.5) / 8,
+    { length: MAX_FIXTURES },
+    (_, i) => (i + 0.5) / MAX_FIXTURES,
   );
 
-  constructor(host: HTMLElement, initial: ConfiguratorState) {
+  constructor(
+    host: HTMLElement,
+    initial: ConfiguratorState,
+    _onFixtureRemoved?: (index: number) => void,
+  ) {
     this.host = host;
     this.state = { ...initial };
 
-    // Если снаружи пришли fractions — забираем их как стартовые
-    if (Array.isArray(initial.fractions) && initial.fractions.length === 8) {
+    if (
+      Array.isArray(initial.fractions) &&
+      initial.fractions.length === MAX_FIXTURES
+    ) {
       this.fractions = [...initial.fractions];
     }
 
@@ -154,10 +158,13 @@ export class TrackScene {
     this.track = new Track(this.metal, this.state.trackType, this.state.length);
     this.root.add(this.track.group);
 
-    for (let i = 0; i < 8; i++) {
-      const fixture = new Fixture(this.metal, this.glowTexture, "spot");
-      const fraction = this.fractions[i] ?? (i + 0.5) / 8;
+    for (let i = 0; i < MAX_FIXTURES; i++) {
+      const type = this.state.fixtures[i] ?? "spot";
+      const fixture = new Fixture(this.metal, this.glowTexture, type);
+      const fraction = this.fractions[i] ?? (i + 0.5) / MAX_FIXTURES;
+
       fixture.group.position.copy(this.track.sample(fraction));
+      this.orientFixture(fixture, fraction);
 
       this.presence[i] = i < this.state.fixtures.length ? 1 : 0;
       fixture.setPresence(this.presence[i]);
@@ -178,10 +185,10 @@ export class TrackScene {
     this.controls.enablePan = false;
     this.controls.rotateSpeed = 0.45;
     this.controls.zoomSpeed = 0.7;
-    this.controls.minPolarAngle = THREE.MathUtils.degToRad(35);
-    this.controls.maxPolarAngle = THREE.MathUtils.degToRad(68);
-    this.controls.minAzimuthAngle = -0.8;
-    this.controls.maxAzimuthAngle = 0.8;
+    this.controls.minPolarAngle = 0;
+    this.controls.maxPolarAngle = Math.PI;
+    this.controls.minAzimuthAngle = -Math.PI / 2;
+    this.controls.maxAzimuthAngle = Math.PI / 2;
     this.controls.minDistance = 1.3;
     this.controls.maxDistance = 12;
     this.controls.addEventListener("start", this.onControlsStart);
@@ -271,18 +278,18 @@ export class TrackScene {
         this.presence[i] = active ? 1 : 0;
 
         if (active) {
-          this.fixtures[i].group.position.copy(
-            this.track.sample(this.fractions[i]),
-          );
+          const fraction = this.fractions[i];
+          this.fixtures[i].group.position.copy(this.track.sample(fraction));
+          this.orientFixture(this.fixtures[i], fraction);
         }
 
         this.fixtures[i].setPresence(this.presence[i]);
       }
     } else if (geometryChanged) {
       for (let i = 0; i < nextLen; i++) {
-        this.fixtures[i].group.position.copy(
-          this.track.sample(this.fractions[i]),
-        );
+        const fraction = this.fractions[i];
+        this.fixtures[i].group.position.copy(this.track.sample(fraction));
+        this.orientFixture(this.fixtures[i], fraction);
       }
     }
 
@@ -313,6 +320,18 @@ export class TrackScene {
     }
 
     if (geometryChanged) this.fit();
+  }
+
+  private orientFixture(fixture: Fixture, fraction: number) {
+    const eps = 0.01;
+    const p1 = this.track.sample(Math.max(0, fraction - eps));
+    const p2 = this.track.sample(Math.min(1, fraction + eps));
+    const dir = p2.sub(p1);
+
+    if (dir.lengthSq() < 1e-6) return;
+
+    dir.normalize();
+    fixture.group.rotation.y = -Math.atan2(dir.z, dir.x);
   }
 
   private resize() {
@@ -503,9 +522,10 @@ export class TrackScene {
         const t = this.track.project(world);
 
         this.fractions[this.draggingFixture] = t;
-        this.fixtures[this.draggingFixture].group.position.copy(
-          this.track.sample(t),
-        );
+
+        const pos = this.track.sample(t);
+        this.fixtures[this.draggingFixture].group.position.copy(pos);
+        this.orientFixture(this.fixtures[this.draggingFixture], t);
       }
       return;
     }
@@ -670,17 +690,10 @@ export class TrackScene {
     this.removeButton = null;
     this.buttonHovered = false;
 
-    for (let i = 0; i < MAX_FIXTURES; i++) {
-      const type = this.state.fixtures[i] ?? "spot";
-      const fixture = new Fixture(this.metal, this.glowTexture, type);
-      const fraction = this.fractions[i] ?? (i + 0.5) / MAX_FIXTURES;
-      fixture.group.position.copy(this.track.sample(fraction));
-
-      this.presence[i] = i < this.state.fixtures.length ? 1 : 0;
-      fixture.setPresence(this.presence[i]);
-      this.fixtures.push(fixture);
-      this.root.add(fixture.group);
+    for (const fixture of this.fixtures) {
+      fixture.dispose();
     }
+    this.fixtures = [];
 
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();

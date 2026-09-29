@@ -20,7 +20,7 @@ export function createGlowTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-type FixtureSpec = {
+type PointedSpec = {
   barrelTop: number;
   barrelBottom: number;
   barrelHeight: number;
@@ -32,9 +32,9 @@ type FixtureSpec = {
   glowScale: number;
 };
 
-const SPECS: Record<FixtureType, FixtureSpec> = {
+const POINTED: Record<"spot", PointedSpec> = {
   spot: {
-    barrelTop: 0.054,
+    barrelTop: 0.069,
     barrelBottom: 0.069,
     barrelHeight: 0.155,
     rimRadius: 0.063,
@@ -44,18 +44,9 @@ const SPECS: Record<FixtureType, FixtureSpec> = {
     lightIntensity: 2.6,
     glowScale: 0.25,
   },
-  wide: {
-    barrelTop: 0.105,
-    barrelBottom: 0.105,
-    barrelHeight: 0.075,
-    rimRadius: 0.098,
-    lensRadius: 0.092,
-    lightAngle: 1.15,
-    lightDistance: 2.2,
-    lightIntensity: 3.4,
-    glowScale: 0.42,
-  },
 };
+
+const LINEAR_INTENSITY = 1.8;
 
 export class Fixture {
   readonly group = new THREE.Group();
@@ -105,9 +96,7 @@ export class Fixture {
     });
 
     this.light = new THREE.SpotLight("#ffe0aa", 2.6, 2.5, 0.65, 1, 2);
-    this.light.position.set(0, -0.19, 0.075);
     this.lightTarget = new THREE.Object3D();
-    this.lightTarget.position.set(0, -0.85, 0.42);
     this.light.target = this.lightTarget;
 
     this.build();
@@ -143,34 +132,68 @@ export class Fixture {
     this.geometries = [];
     this.group.clear();
 
-    const spec = SPECS[this.type];
+    if (this.type === "linear") {
+      this.buildLinear();
+    } else {
+      this.buildPointed();
+    }
 
-    this.addMesh(
+    this.lensMaterial.color.copy(this.lightColor);
+    this.lensMaterial.emissive.copy(this.lightColor);
+    this.glowMaterial.color.copy(this.lightColor);
+    this.light.color.copy(this.lightColor);
+  }
+
+  private buildLinear() {
+    const length = 0.6;
+    const trackBottom = -0.0335;
+    const trimHeight = 0.006;
+    const barHeight = 0.004;
+
+    const trimY = trackBottom - trimHeight / 2;
+    const barY = trackBottom - trimHeight - barHeight / 2;
+
+    const trim = this.addMesh(
       this.group,
-      new RoundedBoxGeometry(0.135, 0.035, 0.053, 3, 0.007),
-      this.material,
-      [0, -0.046, 0],
+      new RoundedBoxGeometry(length + 0.008, trimHeight, 0.055, 2, 0.003),
+      this.detailMaterial,
+      [0, trimY, 0],
     );
+    trim.castShadow = false;
+    trim.receiveShadow = false;
+
+    const bar = this.addMesh(
+      this.group,
+      new RoundedBoxGeometry(length, barHeight, 0.045, 2, 0.005),
+      this.lensMaterial,
+      [0, barY, 0],
+    );
+    bar.castShadow = false;
+    bar.receiveShadow = false;
+
+    this.light.angle = 1.45;
+    this.light.distance = 2;
+    this.light.intensity = LINEAR_INTENSITY;
+    this.light.position.set(0, barY - 0.02, 0);
+    this.lightTarget.position.set(0, -1.5, 0);
+
+    this.group.add(this.light, this.lightTarget);
+  }
+
+  private buildPointed() {
+    const spec = POINTED[this.type as "spot"];
 
     this.addMesh(
       this.group,
-      new THREE.CylinderGeometry(0.019, 0.019, 0.075, 24),
+      new THREE.CylinderGeometry(0.019, 0.019, 0.2, 24),
       this.detailMaterial,
       [0, -0.09, 0],
     );
 
     const pivot = new THREE.Group();
     pivot.position.y = -0.13;
-    pivot.rotation.x = -1.22;
+    pivot.rotation.x = -0.8;
     this.group.add(pivot);
-
-    const hinge = this.addMesh(
-      pivot,
-      new THREE.CylinderGeometry(0.027, 0.027, 0.13, 32),
-      this.detailMaterial,
-      [0, 0, 0],
-    );
-    hinge.rotation.z = Math.PI / 2;
 
     const barrel = new THREE.Group();
     barrel.position.y = -0.067;
@@ -189,6 +212,7 @@ export class Fixture {
     );
 
     const rimY = -spec.barrelHeight / 2 - 0.004;
+    const lensY = rimY + 0.006;
 
     const rim = this.addMesh(
       barrel,
@@ -202,12 +226,12 @@ export class Fixture {
       barrel,
       new THREE.CylinderGeometry(spec.lensRadius, spec.lensRadius, 0.005, 40),
       this.lensMaterial,
-      [0, rimY, 0],
+      [0, lensY, 0],
     );
     lens.castShadow = false;
 
     const glow = new THREE.Sprite(this.glowMaterial);
-    glow.position.y = rimY - 0.011;
+    glow.position.y = rimY - 0.004;
     glow.scale.set(spec.glowScale, spec.glowScale, 1);
     barrel.add(glow);
 
@@ -215,14 +239,9 @@ export class Fixture {
     this.light.distance = spec.lightDistance;
     this.light.intensity = spec.lightIntensity;
     this.light.position.set(0, rimY - 0.1, 0.075);
+    this.lightTarget.position.set(0, -0.85, 0.42);
 
     this.group.add(this.light, this.lightTarget);
-
-    // восстановить актуальный цвет после пересборки
-    this.lensMaterial.color.copy(this.lightColor);
-    this.lensMaterial.emissive.copy(this.lightColor);
-    this.glowMaterial.color.copy(this.lightColor);
-    this.light.color.copy(this.lightColor);
   }
 
   setTemperature(color: THREE.Color) {
@@ -236,7 +255,13 @@ export class Fixture {
   setPresence(value: number) {
     this.group.visible = value > 0.005;
     this.group.scale.setScalar(Math.max(0.001, value));
-    this.light.intensity = SPECS[this.type].lightIntensity * value;
+
+    const base =
+      this.type === "linear"
+        ? LINEAR_INTENSITY
+        : POINTED[this.type as "spot"].lightIntensity;
+
+    this.light.intensity = base * value;
   }
 
   dispose() {
