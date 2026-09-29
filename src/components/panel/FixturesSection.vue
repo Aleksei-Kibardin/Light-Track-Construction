@@ -1,99 +1,77 @@
 <script setup lang="ts">
+import {
+  FIXTURE_TYPES,
+  MAX_FIXTURES,
+  type FixtureType,
+} from "../../types/configurator"
+
 const props = defineProps<{
-  modelId: string
-  count: number
-  models: { id: string; label: string }[]
+  fixtures: FixtureType[]
 }>()
 
 const emit = defineEmits<{
-  'update:modelId': [value: string]
-  'update:count': [value: number]
+  add: [type: FixtureType]
+  remove: [index: number]
 }>()
 
-function onSelect(event: Event) {
-  emit('update:modelId', (event.target as HTMLSelectElement).value)
-}
+const types = Object.keys(FIXTURE_TYPES) as FixtureType[]
 
-function dec() {
-  if (props.count > 1) emit('update:count', props.count - 1)
+function add(type: FixtureType) {
+  if (props.fixtures.length >= MAX_FIXTURES) return
+  emit("add", type)
 }
-
-function inc() {
-  if (props.count < 8) emit('update:count', props.count + 1)
-}
-
-const currentLabel = () =>
-  props.models.find((m) => m.id === props.modelId)?.label ?? ''
 </script>
 
 <template>
   <section class="flex flex-col gap-3">
-    <label class="flex flex-col gap-2">
+    <div class="flex items-baseline justify-between">
       <span class="text-[11px] uppercase tracking-[0.14em] text-[#4b4b45]">
-        Модель светильника
+        Светильники
       </span>
-
-      <div class="relative">
-        <select
-          :value="modelId"
-          class="w-full appearance-none rounded-md border border-[#dcdad3] bg-white px-3 py-2.5 pr-9 text-[13px] text-[#111111] transition-colors duration-150 hover:border-[#b9b7ae] focus:border-[#111111] focus:outline-none"
-          @change="onSelect"
-        >
-          <option v-for="m in models" :key="m.id" :value="m.id">
-            {{ m.label }}
-          </option>
-        </select>
-
-        <svg
-          viewBox="0 0 20 20"
-          class="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#8a8a82]"
-          aria-hidden="true"
-        >
-          <path
-            d="m6 8 4 4 4-4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </div>
-    </label>
-
-    <div class="flex flex-row items-center justify-between">
-      <div>
-        <p class="text-[13px] text-[#111111]">Светильники</p>
-        <p class="mt-1.5 text-[10px] text-[#8a8a82]">{{ currentLabel() }}</p>
-      </div>
-
-      <div class="flex items-center overflow-hidden rounded-md border border-[#dcdad3] bg-white">
-        <button
-          type="button"
-          class="flex h-9 w-9 items-center justify-center border-0 bg-transparent text-base leading-none text-[#4b4b45] transition-colors duration-150 hover:bg-[#f0efe9] hover:text-[#111111] disabled:cursor-not-allowed disabled:text-[#c9c7bf] disabled:hover:bg-transparent disabled:hover:text-[#c9c7bf]"
-          aria-label="Убрать светильник"
-          :disabled="count <= 1"
-          @click="dec"
-        >
-          −
-        </button>
-
-        <output
-          class="w-9 border-x border-[#dcdad3] text-center text-[13px] leading-9 text-[#111111] tabular-nums"
-        >
-          {{ count }}
-        </output>
-
-        <button
-          type="button"
-          class="flex h-9 w-9 items-center justify-center border-0 bg-transparent text-base leading-none text-[#4b4b45] transition-colors duration-150 hover:bg-[#f0efe9] hover:text-[#111111] disabled:cursor-not-allowed disabled:text-[#c9c7bf] disabled:hover:bg-transparent disabled:hover:text-[#c9c7bf]"
-          aria-label="Добавить светильник"
-          :disabled="count >= 8"
-          @click="inc"
-        >
-          +
-        </button>
-      </div>
+      <span class="text-[11px] text-[#111111] tabular-nums">
+        {{ fixtures.length }} / {{ MAX_FIXTURES }}
+      </span>
     </div>
+
+    <div class="grid grid-cols-2 gap-2">
+      <button
+        v-for="type in types"
+        :key="type"
+        type="button"
+        :disabled="fixtures.length >= MAX_FIXTURES"
+        class="flex flex-col items-start gap-0.5 rounded-md border border-[#dcdad3] bg-white px-3 py-2.5 text-left transition-colors duration-150 hover:border-[#b9b7ae] disabled:cursor-not-allowed disabled:opacity-40"
+        @click="add(type)"
+      >
+        <span class="text-[10px] uppercase tracking-[0.14em] text-[#8a8a82]">
+          Добавить
+        </span>
+        <span class="text-[12px] text-[#111111]">
+          {{ FIXTURE_TYPES[type].label }}
+        </span>
+      </button>
+    </div>
+
+    <ul v-if="fixtures.length" class="flex flex-col gap-1">
+      <li
+        v-for="(type, i) in fixtures"
+        :key="i"
+        class="flex items-center justify-between gap-3 rounded-md border border-[#f0efe9] bg-[#faf9f5] px-3 py-2 text-[12px]"
+      >
+        <span class="flex items-center gap-2 text-[#111111]">
+          <span class="h-1.5 w-1.5 rounded-full bg-[#111111]"></span>
+          {{ FIXTURE_TYPES[type].label }}
+        </span>
+
+        <button
+          type="button"
+          :disabled="fixtures.length <= 1"
+          aria-label="Удалить светильник"
+          class="flex h-6 w-6 items-center justify-center rounded-full border-0 bg-transparent text-[14px] leading-none text-[#8a8a82] transition-colors duration-150 hover:bg-[#f0efe9] hover:text-[#111111] disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[#8a8a82]"
+          @click="emit('remove', i)"
+        >
+          ×
+        </button>
+      </li>
+    </ul>
   </section>
 </template>

@@ -3,7 +3,6 @@ import type { ConfiguratorState } from "../types/configurator";
 import {
   estimateItems,
   estimateTotal,
-  fixtureModels,
   usePanelMocks,
 } from "../composables/usePanelMocks";
 
@@ -25,7 +24,21 @@ const emit = defineEmits<{
   add: [];
 }>();
 
-const { selectedFixture, sideA, sideB } = usePanelMocks();
+import { MAX_FIXTURES, type FixtureType } from "../types/configurator";
+
+function addFixture(type: FixtureType) {
+  if (props.state.fixtures.length >= MAX_FIXTURES) return;
+  emit("change", { fixtures: [...props.state.fixtures, type] });
+}
+
+function removeFixture(index: number) {
+  if (props.state.fixtures.length <= 1) return;
+  emit("change", {
+    fixtures: props.state.fixtures.filter((_, i) => i !== index),
+  });
+}
+
+const { sideA, sideB } = usePanelMocks();
 </script>
 
 <template>
@@ -74,11 +87,9 @@ const { selectedFixture, sideA, sideB } = usePanelMocks();
       />
 
       <FixturesSection
-        :model-id="selectedFixture"
-        :count="state.fixtures"
-        :models="fixtureModels"
-        @update:model-id="selectedFixture = $event"
-        @update:count="emit('change', { fixtures: $event })"
+        :fixtures="state.fixtures"
+        @add="addFixture"
+        @remove="removeFixture"
       />
 
       <TemperatureSection

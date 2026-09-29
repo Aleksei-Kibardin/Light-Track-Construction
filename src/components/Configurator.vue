@@ -1,49 +1,51 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import ConfigPanel from './ConfigPanel.vue'
-import { useConfigurator } from '../composables/useConfigurator'
-import { TrackScene } from '../three/TrackScene'
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import ConfigPanel from "./ConfigPanel.vue";
+import { useConfigurator } from "../composables/useConfigurator";
+import { TrackScene } from "../three/TrackScene";
 
 const { state, formattedPrice, notice, update, addToProject } =
-  useConfigurator()
+  useConfigurator();
 
-const host = ref<HTMLDivElement>()
-const ready = ref(false)
-const error = ref(false)
-let scene: TrackScene | undefined
+const host = ref<HTMLDivElement>();
+const ready = ref(false);
+const error = ref(false);
+let scene: TrackScene | undefined;
 
 onMounted(() => {
-  if (!host.value) return
+  if (!host.value) return;
 
   try {
-    scene = new TrackScene(host.value, { ...state })
-    ready.value = true
+    scene = new TrackScene(host.value, { ...state });
+    ready.value = true;
   } catch (cause) {
-    console.error('Не удалось запустить 3D-сцену', cause)
-    error.value = true
-    host.value.replaceChildren()
+    console.error("Не удалось запустить 3D-сцену", cause);
+    error.value = true;
+    host.value.replaceChildren();
   }
-})
+});
 
 watch(state, (value) => scene?.update({ ...value }), {
   deep: true,
-  flush: 'sync',
-})
+  flush: "sync",
+});
 
 function rotate() {
-  update({ rotation: state.rotation + 90 })
+  update({ rotation: state.rotation + 90 });
 }
 
 function reset() {
-  update({ rotation: 0 })
-  scene?.reset()
+  update({ rotation: 0 });
+  scene?.reset();
 }
 
-onBeforeUnmount(() => scene?.dispose())
+onBeforeUnmount(() => scene?.dispose());
 </script>
 
 <template>
-  <div class="mobile-scroll flex min-h-screen lg:h-screen  flex-col bg-[#f6f5f1] text-[#111111] antialiased">
+  <div
+    class="mobile-scroll flex min-h-screen lg:h-screen flex-col bg-[#f6f5f1] text-[#111111] antialiased"
+  >
     <header
       class="relative z-30 flex items-center gap-5 border-b border-[#e6e4dc] bg-[#f6f5f1]/85 px-8 py-5.5 backdrop-blur-md"
     >
@@ -65,7 +67,9 @@ onBeforeUnmount(() => scene?.dispose())
       </div>
     </header>
 
-    <main class="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px]">
+    <main
+      class="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px]"
+    >
       <section
         class="relative min-h-[60vh] max-h-screen overflow-hidden bg-[#eeede7] lg:min-h-0"
         aria-label="Предпросмотр трекового освещения"
@@ -89,7 +93,9 @@ onBeforeUnmount(() => scene?.dispose())
           class="pointer-events-none absolute right-7 top-10 z-10 hidden items-center gap-2 md:flex"
         >
           <span class="h-1.5 w-1.5 rounded-full bg-[#ff3300]"></span>
-          <span class="text-[9px] tracking-[0.12em] text-[#8a8a82]">LIVE 3D</span>
+          <span class="text-[9px] tracking-[0.12em] text-[#8a8a82]"
+            >LIVE 3D</span
+          >
         </div>
 
         <Transition name="fade">
@@ -102,9 +108,11 @@ onBeforeUnmount(() => scene?.dispose())
               <p class="text-[18px] tracking-tight text-[#111111]">
                 3D-предпросмотр недоступен
               </p>
-              <p class="mt-3 max-w-[320px] text-[12px] leading-relaxed text-[#8a8a82]">
-                Откройте страницу в браузере с поддержкой WebGL
-                и включённым аппаратным ускорением.
+              <p
+                class="mt-3 max-w-[320px] text-[12px] leading-relaxed text-[#8a8a82]"
+              >
+                Откройте страницу в браузере с поддержкой WebGL и включённым
+                аппаратным ускорением.
               </p>
             </div>
 
@@ -203,7 +211,9 @@ onBeforeUnmount(() => scene?.dispose())
         role="status"
         aria-live="polite"
       >
-        <span class="mr-3 text-[14px] text-[#aabc97]" aria-hidden="true">✓</span>
+        <span class="mr-3 text-[14px] text-[#aabc97]" aria-hidden="true"
+          >✓</span
+        >
         {{ notice }}
       </div>
     </Transition>

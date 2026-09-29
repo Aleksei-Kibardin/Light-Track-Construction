@@ -23,14 +23,6 @@ const emit = defineEmits<{ add: [] }>();
       </span>
     </div>
 
-    <p class="mt-4 text-xs text-[#62685f] tabular-nums">
-      {{ state.length.toFixed(1) }} м
-      <span class="mx-2 text-[#bbc0b5]">/</span>
-      {{ state.fixtures }} × Spot 07
-      <span class="mx-2 text-[#bbc0b5]">/</span>
-      {{ state.temperature }} K
-    </p>
-
     <div class="mt-6 rounded-md border border-[#dcdad3] bg-white/60">
       <div
         class="flex items-center justify-between border-b border-[#e6e4dc] px-4 py-3 text-[10px] uppercase tracking-[0.14em] text-[#8a8a82]"

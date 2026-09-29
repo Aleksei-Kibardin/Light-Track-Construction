@@ -1,15 +1,27 @@
 export type TrackType = 'line' | 'l' | 'u' | 'p'
 export type Finish = 'black' | 'white' | 'graphite'
+export type FixtureType = "spot" | "wide"
 
-export interface ConfiguratorState {
-  fractions: boolean
+export const FIXTURE_TYPES: Record<
+  FixtureType,
+  { label: string; short: string }
+> = {
+  spot: { label: "INFINITY LOCUS", short: "Spot 07" },
+  wide: { label: "INFINITY OREO", short: "Wide 12" },
+}
+
+export const MAX_FIXTURES = 8
+
+export type ConfiguratorState = {
   trackType: TrackType
   length: number
   color: Finish
-  fixtures: number
+  fixtures: FixtureType[]
+  fractions: number[]
   temperature: number
   rotation: number
 }
+
 
 export const finishes: Record<
   Finish,

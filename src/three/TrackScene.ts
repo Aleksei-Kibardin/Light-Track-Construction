@@ -2,7 +2,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Track, createPath } from "./Track";
 import { Fixture, createGlowTexture } from "./Fixture";
-import { finishes, type ConfiguratorState } from "../types/configurator";
+import {
+  finishes,
+  type ConfiguratorState,
+  MAX_FIXTURES,
+} from "../types/configurator";
 
 export class TrackScene {
   private scene = new THREE.Scene();
@@ -55,10 +59,7 @@ export class TrackScene {
     (_, i) => (i + 0.5) / 8,
   );
 
-  constructor(
-    host: HTMLElement,
-    initial: ConfiguratorState,
-  ) {
+  constructor(host: HTMLElement, initial: ConfiguratorState) {
     this.host = host;
     this.state = { ...initial };
 
@@ -89,7 +90,6 @@ export class TrackScene {
     this.host.appendChild(canvas);
 
     this.host.style.position ||= "relative";
-    this.createRemoveButton();
 
     this.scene.background = new THREE.Color("#eeefeb");
     this.scene.fog = new THREE.Fog("#eeefeb", 10, 24);
@@ -155,11 +155,11 @@ export class TrackScene {
     this.root.add(this.track.group);
 
     for (let i = 0; i < 8; i++) {
-      const fixture = new Fixture(this.metal, this.glowTexture);
+      const fixture = new Fixture(this.metal, this.glowTexture, "spot");
       const fraction = this.fractions[i] ?? (i + 0.5) / 8;
       fixture.group.position.copy(this.track.sample(fraction));
 
-      this.presence[i] = i < this.state.fixtures ? 1 : 0;
+      this.presence[i] = i < this.state.fixtures.length ? 1 : 0;
       fixture.setPresence(this.presence[i]);
       this.fixtures.push(fixture);
       this.root.add(fixture.group);
@@ -238,103 +238,52 @@ export class TrackScene {
     return result;
   }
 
-  private createRemoveButton() {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = "×";
-    button.setAttribute("aria-label", "Удалить светильник");
-    button.style.position = "absolute";
-    button.style.width = "28px";
-    button.style.height = "28px";
-    button.style.borderRadius = "999px";
-    button.style.border = "1px solid rgba(0,0,0,0.08)";
-    button.style.background = "rgba(255,255,255,0.92)";
-    button.style.color = "#111";
-    button.style.fontSize = "16px";
-    button.style.lineHeight = "1";
-    button.style.cursor = "pointer";
-    button.style.display = "none";
-    button.style.zIndex = "5";
-    button.style.backdropFilter = "blur(8px)";
-    button.style.boxShadow = "0 4px 12px -4px rgba(0,0,0,0.18)";
-    button.style.pointerEvents = "auto";
-    button.style.transition = "opacity 120ms ease";
-
-    // Расширяем зону попадания: невидимая обводка вокруг кнопки
-    button.style.setProperty("box-sizing", "content-box");
-    button.style.setProperty("outline", "10px solid transparent");
-
-    button.addEventListener("pointerenter", () => {
-      this.buttonHovered = true;
-    });
-
-    button.addEventListener("pointerleave", () => {
-      this.buttonHovered = false;
-    });
-
-    button.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-    });
-
-    button.addEventListener("click", (e) => {
-      e.stopPropagation();
-      // TODO: удаление светильника
-    });
-
-    this.host.appendChild(button);
-    this.removeButton = button;
-  }
-
   update(next: ConfiguratorState) {
-    const typeChanged = next.trackType !== this.state.trackType;
-    const geometryChanged =
-      next.trackType !== this.state.trackType ||
-      next.length !== this.state.length;
+    const trackChanged = next.trackType !== this.state.trackType;
+    const lengthChanged = next.length !== this.state.length;
+    const geometryChanged = trackChanged || lengthChanged;
 
-    const countChanged = next.fixtures !== this.state.fixtures;
+    const nextLen = next.fixtures.length;
+    const prevLen = this.state.fixtures.length;
+    const countChanged = nextLen !== prevLen;
 
-    this.state = {
-      ...next,
-    };
+    const typesChanged =
+      countChanged ||
+      next.fixtures.some((type, i) => type !== this.state.fixtures[i]);
 
+    this.state = { ...next };
     this.track.setShape(next.trackType, next.length);
-    if (geometryChanged) {
-      this.track.tick(1);
+    if (geometryChanged) this.track.tick(1);
+
+    if (typesChanged) {
+      for (let i = 0; i < Math.min(nextLen, MAX_FIXTURES); i++) {
+        this.fixtures[i].setType(next.fixtures[i]);
+      }
     }
 
-    if (typeChanged) {
-      this.fractions = Array.from({ length: 8 }, (_, i) =>
-        i < next.fixtures ? (i + 0.5) / next.fixtures : 0,
+    if (countChanged) {
+      this.fractions = Array.from({ length: MAX_FIXTURES }, (_, i) =>
+        i < nextLen ? (i + 0.5) / nextLen : 0,
       );
 
-      for (let i = 0; i < 8; i++) {
-        const fraction = this.fractions[i];
-        const pos = this.track.sample(fraction);
-        this.fixtures[i].group.position.copy(pos);
+      for (let i = 0; i < MAX_FIXTURES; i++) {
+        const active = i < nextLen;
+        this.presence[i] = active ? 1 : 0;
 
-        this.presence[i] = i < next.fixtures ? 1 : 0;
+        if (active) {
+          this.fixtures[i].group.position.copy(
+            this.track.sample(this.fractions[i]),
+          );
+        }
+
         this.fixtures[i].setPresence(this.presence[i]);
       }
     } else if (geometryChanged) {
-      for (let i = 0; i < 8; i++) {
-        const fraction =
-          this.fractions[i] ?? (i + 0.5) / Math.max(1, next.fixtures);
-        this.fixtures[i].group.position.copy(this.track.sample(fraction));
+      for (let i = 0; i < nextLen; i++) {
+        this.fixtures[i].group.position.copy(
+          this.track.sample(this.fractions[i]),
+        );
       }
-    }
-
-    if (!typeChanged && countChanged) {
-      for (let i = 0; i < 8; i++) {
-        if (i < next.fixtures && this.presence[i] < 0.05) {
-          const fraction =
-            this.fractions[i] ?? (i + 0.5) / Math.max(1, next.fixtures);
-          this.fixtures[i].group.position.copy(this.track.sample(fraction));
-        }
-      }
-
-      this.fractions = Array.from({ length: 8 }, (_, i) =>
-        i < next.fixtures ? (i + 0.5) / next.fixtures : 0,
-      );
     }
 
     const finish = finishes[next.color];
@@ -508,10 +457,14 @@ export class TrackScene {
         return;
       }
 
+      const fixtureWorld = this.fixtures[fixtureHit].group.getWorldPosition(
+        new THREE.Vector3(),
+      );
+
       this.dragPointer = event.pointerId;
       this.draggingFixture = fixtureHit;
       this.draggingTrack = false;
-      this.dragOffset.copy(this.intersection).sub(this.root.position);
+      this.dragOffset.copy(this.intersection).sub(fixtureWorld);
       this.controls.enabled = false;
 
       this.renderer.domElement.setPointerCapture(event.pointerId);
@@ -546,11 +499,10 @@ export class TrackScene {
       if (
         this.raycaster.ray.intersectPlane(this.dragPlane, this.intersection)
       ) {
-        const world = this.intersection.clone().add(this.dragOffset);
+        const world = this.intersection.clone().sub(this.dragOffset);
         const t = this.track.project(world);
 
         this.fractions[this.draggingFixture] = t;
-
         this.fixtures[this.draggingFixture].group.position.copy(
           this.track.sample(t),
         );
@@ -662,7 +614,7 @@ export class TrackScene {
     );
 
     this.fixtures.forEach((fixture, index) => {
-      const active = index < this.state.fixtures;
+      const active = index < this.state.fixtures.length;
       const targetPresence = active ? 1 : 0;
 
       this.presence[index] = THREE.MathUtils.lerp(
@@ -717,6 +669,18 @@ export class TrackScene {
     this.removeButton?.remove();
     this.removeButton = null;
     this.buttonHovered = false;
+
+    for (let i = 0; i < MAX_FIXTURES; i++) {
+      const type = this.state.fixtures[i] ?? "spot";
+      const fixture = new Fixture(this.metal, this.glowTexture, type);
+      const fraction = this.fractions[i] ?? (i + 0.5) / MAX_FIXTURES;
+      fixture.group.position.copy(this.track.sample(fraction));
+
+      this.presence[i] = i < this.state.fixtures.length ? 1 : 0;
+      fixture.setPresence(this.presence[i]);
+      this.fixtures.push(fixture);
+      this.root.add(fixture.group);
+    }
 
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();

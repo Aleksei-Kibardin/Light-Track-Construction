@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import type { FixtureType } from "../types/configurator";
 
 export function createGlowTexture() {
   const canvas = document.createElement("canvas");
@@ -19,82 +20,70 @@ export function createGlowTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
+type FixtureSpec = {
+  barrelTop: number;
+  barrelBottom: number;
+  barrelHeight: number;
+  rimRadius: number;
+  lensRadius: number;
+  lightAngle: number;
+  lightDistance: number;
+  lightIntensity: number;
+  glowScale: number;
+};
+
+const SPECS: Record<FixtureType, FixtureSpec> = {
+  spot: {
+    barrelTop: 0.054,
+    barrelBottom: 0.069,
+    barrelHeight: 0.155,
+    rimRadius: 0.063,
+    lensRadius: 0.057,
+    lightAngle: 0.65,
+    lightDistance: 2.5,
+    lightIntensity: 2.6,
+    glowScale: 0.25,
+  },
+  wide: {
+    barrelTop: 0.105,
+    barrelBottom: 0.105,
+    barrelHeight: 0.075,
+    rimRadius: 0.098,
+    lensRadius: 0.092,
+    lightAngle: 1.15,
+    lightDistance: 2.2,
+    lightIntensity: 3.4,
+    glowScale: 0.42,
+  },
+};
+
 export class Fixture {
   readonly group = new THREE.Group();
 
+  private material: THREE.MeshStandardMaterial;
+  private detailMaterial: THREE.MeshStandardMaterial;
   private lensMaterial: THREE.MeshStandardMaterial;
   private glowMaterial: THREE.SpriteMaterial;
   private light: THREE.SpotLight;
+  private lightTarget: THREE.Object3D;
+
+  private geometries: THREE.BufferGeometry[] = [];
+  private type: FixtureType;
+  private lightColor = new THREE.Color("#ffe0aa");
 
   constructor(
     material: THREE.MeshStandardMaterial,
     glowTexture: THREE.Texture,
+    type: FixtureType = "spot",
   ) {
-    const detailMaterial = new THREE.MeshStandardMaterial({
+    this.material = material;
+    this.type = type;
+
+    this.detailMaterial = new THREE.MeshStandardMaterial({
       color: "#353a37",
       metalness: 0.85,
       roughness: 0.24,
     });
-
-    const addMesh = (
-      parent: THREE.Object3D,
-      geometry: THREE.BufferGeometry,
-      meshMaterial: THREE.Material,
-      position: [number, number, number],
-    ) => {
-      const mesh = new THREE.Mesh(geometry, meshMaterial);
-      mesh.position.set(...position);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      parent.add(mesh);
-      return mesh;
-    };
-
-    addMesh(
-      this.group,
-      new RoundedBoxGeometry(0.135, 0.035, 0.053, 3, 0.007),
-      material,
-      [0, -0.046, 0],
-    );
-
-    addMesh(
-      this.group,
-      new THREE.CylinderGeometry(0.019, 0.019, 0.075, 24),
-      detailMaterial,
-      [0, -0.09, 0],
-    );
-
-    const pivot = new THREE.Group();
-    pivot.position.y = -0.13;
-    pivot.rotation.x = -1.22;
-    this.group.add(pivot);
-
-    const hinge = addMesh(
-      pivot,
-      new THREE.CylinderGeometry(0.027, 0.027, 0.13, 32),
-      detailMaterial,
-      [0, 0, 0],
-    );
-    hinge.rotation.z = Math.PI / 2;
-
-    const barrel = new THREE.Group();
-    barrel.position.y = -0.067;
-    pivot.add(barrel);
-
-    addMesh(
-      barrel,
-      new THREE.CylinderGeometry(0.054, 0.069, 0.155, 48),
-      material,
-      [0, 0, 0],
-    );
-
-    const rim = addMesh(
-      barrel,
-      new THREE.TorusGeometry(0.063, 0.006, 12, 48),
-      detailMaterial,
-      [0, -0.081, 0],
-    );
-    rim.rotation.x = Math.PI / 2;
 
     this.lensMaterial = new THREE.MeshStandardMaterial({
       color: "#fff0d9",
@@ -104,14 +93,6 @@ export class Fixture {
       metalness: 0.05,
       toneMapped: false,
     });
-
-    const lens = addMesh(
-      barrel,
-      new THREE.CylinderGeometry(0.057, 0.057, 0.005, 40),
-      this.lensMaterial,
-      [0, -0.081, 0],
-    );
-    lens.castShadow = false;
 
     this.glowMaterial = new THREE.SpriteMaterial({
       map: glowTexture,
@@ -123,22 +104,129 @@ export class Fixture {
       toneMapped: false,
     });
 
-    const glow = new THREE.Sprite(this.glowMaterial);
-    glow.position.y = -0.092;
-    glow.scale.set(0.25, 0.25, 1);
-    barrel.add(glow);
-
     this.light = new THREE.SpotLight("#ffe0aa", 2.6, 2.5, 0.65, 1, 2);
     this.light.position.set(0, -0.19, 0.075);
+    this.lightTarget = new THREE.Object3D();
+    this.lightTarget.position.set(0, -0.85, 0.42);
+    this.light.target = this.lightTarget;
 
-    const target = new THREE.Object3D();
-    target.position.set(0, -0.85, 0.42);
+    this.build();
+  }
 
-    this.group.add(this.light, target);
-    this.light.target = target;
+  setType(type: FixtureType) {
+    if (type === this.type) return;
+    this.type = type;
+    this.build();
+  }
+
+  private trackGeometry<T extends THREE.BufferGeometry>(geometry: T): T {
+    this.geometries.push(geometry);
+    return geometry;
+  }
+
+  private addMesh(
+    parent: THREE.Object3D,
+    geometry: THREE.BufferGeometry,
+    meshMaterial: THREE.Material,
+    position: [number, number, number],
+  ) {
+    const mesh = new THREE.Mesh(this.trackGeometry(geometry), meshMaterial);
+    mesh.position.set(...position);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+    return mesh;
+  }
+
+  private build() {
+    for (const geometry of this.geometries) geometry.dispose();
+    this.geometries = [];
+    this.group.clear();
+
+    const spec = SPECS[this.type];
+
+    this.addMesh(
+      this.group,
+      new RoundedBoxGeometry(0.135, 0.035, 0.053, 3, 0.007),
+      this.material,
+      [0, -0.046, 0],
+    );
+
+    this.addMesh(
+      this.group,
+      new THREE.CylinderGeometry(0.019, 0.019, 0.075, 24),
+      this.detailMaterial,
+      [0, -0.09, 0],
+    );
+
+    const pivot = new THREE.Group();
+    pivot.position.y = -0.13;
+    pivot.rotation.x = -1.22;
+    this.group.add(pivot);
+
+    const hinge = this.addMesh(
+      pivot,
+      new THREE.CylinderGeometry(0.027, 0.027, 0.13, 32),
+      this.detailMaterial,
+      [0, 0, 0],
+    );
+    hinge.rotation.z = Math.PI / 2;
+
+    const barrel = new THREE.Group();
+    barrel.position.y = -0.067;
+    pivot.add(barrel);
+
+    this.addMesh(
+      barrel,
+      new THREE.CylinderGeometry(
+        spec.barrelTop,
+        spec.barrelBottom,
+        spec.barrelHeight,
+        48,
+      ),
+      this.material,
+      [0, 0, 0],
+    );
+
+    const rimY = -spec.barrelHeight / 2 - 0.004;
+
+    const rim = this.addMesh(
+      barrel,
+      new THREE.TorusGeometry(spec.rimRadius, 0.006, 12, 48),
+      this.detailMaterial,
+      [0, rimY, 0],
+    );
+    rim.rotation.x = Math.PI / 2;
+
+    const lens = this.addMesh(
+      barrel,
+      new THREE.CylinderGeometry(spec.lensRadius, spec.lensRadius, 0.005, 40),
+      this.lensMaterial,
+      [0, rimY, 0],
+    );
+    lens.castShadow = false;
+
+    const glow = new THREE.Sprite(this.glowMaterial);
+    glow.position.y = rimY - 0.011;
+    glow.scale.set(spec.glowScale, spec.glowScale, 1);
+    barrel.add(glow);
+
+    this.light.angle = spec.lightAngle;
+    this.light.distance = spec.lightDistance;
+    this.light.intensity = spec.lightIntensity;
+    this.light.position.set(0, rimY - 0.1, 0.075);
+
+    this.group.add(this.light, this.lightTarget);
+
+    // восстановить актуальный цвет после пересборки
+    this.lensMaterial.color.copy(this.lightColor);
+    this.lensMaterial.emissive.copy(this.lightColor);
+    this.glowMaterial.color.copy(this.lightColor);
+    this.light.color.copy(this.lightColor);
   }
 
   setTemperature(color: THREE.Color) {
+    this.lightColor.copy(color);
     this.lensMaterial.color.copy(color);
     this.lensMaterial.emissive.copy(color);
     this.glowMaterial.color.copy(color);
@@ -148,6 +236,15 @@ export class Fixture {
   setPresence(value: number) {
     this.group.visible = value > 0.005;
     this.group.scale.setScalar(Math.max(0.001, value));
-    this.light.intensity = 2.6 * value;
+    this.light.intensity = SPECS[this.type].lightIntensity * value;
+  }
+
+  dispose() {
+    for (const geometry of this.geometries) geometry.dispose();
+    this.geometries = [];
+    this.detailMaterial.dispose();
+    this.lensMaterial.dispose();
+    this.glowMaterial.dispose();
+    this.light.dispose();
   }
 }
