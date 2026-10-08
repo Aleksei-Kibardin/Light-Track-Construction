@@ -25,8 +25,8 @@ export const FIXTURE_TYPES: Record<
   FixtureType,
   { label: string; short: string }
 > = {
-  spot: { label: "Spot 07 · 7 W", short: "Spot 07" },
-  linear: { label: "Linear 60 · 15 W", short: "Linear" },
+  spot: { label: "INFINITY LOCUS", short: "Spot 07" },
+  linear: { label: "INFINITY LINE", short: "Linear" },
 }
 
 export const finishes: Record<
