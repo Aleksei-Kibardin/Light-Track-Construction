@@ -1,11 +1,23 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import ConfigPanel from "./ConfigPanel.vue";
 import { useConfigurator } from "../composables/useConfigurator";
+import { useWizard } from "../composables/useWizard";
+import { getTrackPhoto } from "../composables/useTrackPhotos";
 import { TrackScene } from "../three/TrackScene";
+import Details from "./panel/options/Details.vue"
+import { estimateItems, estimateTotal } from "../composables/usePanelMocks"
 
 const { state, formattedPrice, notice, update, addToProject } =
   useConfigurator();
+
+const { step, isLast } = useWizard();
+
+const showPhoto = computed(
+  () => step.value === "mount" || step.value === "color",
+);
+
+const photoSrc = computed(() => getTrackPhoto(state.mount, state.color));
 
 const host = ref<HTMLDivElement>();
 const ready = ref(false);
@@ -44,7 +56,7 @@ onBeforeUnmount(() => scene?.dispose());
 
 <template>
   <div
-    class="mobile-scroll flex min-h-screen lg:h-screen flex-col bg-[#f6f5f1] text-[#111111] antialiased"
+    class="mobile-scroll flex min-h-screen flex-col bg-[#f6f5f1] text-[#111111] antialiased lg:h-screen"
   >
     <header
       class="relative z-30 flex items-center gap-5 border-b border-[#e6e4dc] bg-[#f6f5f1]/85 px-8 py-5.5 backdrop-blur-md"
@@ -60,11 +72,6 @@ onBeforeUnmount(() => scene?.dispose());
           Конфигуратор
         </span>
       </a>
-
-      <div class="flex items-center gap-4 text-[11px] text-[#8a8a82]">
-        <span class="block h-3 w-px bg-[#d6d9d0]"></span>
-        <span>Алексей</span>
-      </div>
     </header>
 
     <main
@@ -74,22 +81,24 @@ onBeforeUnmount(() => scene?.dispose());
         class="relative min-h-[60vh] max-h-screen overflow-hidden bg-[#eeede7] lg:min-h-0"
         aria-label="Предпросмотр трекового освещения"
       >
-        <div ref="host" class="absolute inset-0 h-screen"></div>
+        <div
+          ref="host"
+          class="absolute inset-0 h-screen transition-opacity duration-300"
+          :class="showPhoto ? 'opacity-0' : 'opacity-100'"
+        ></div>
+
+        <Transition name="photo">
+          <img
+            v-if="showPhoto"
+            :key="photoSrc"
+            :src="photoSrc"
+            alt=""
+            class="absolute inset-0 z-[5] h-full w-full object-cover"
+          />
+        </Transition>
 
         <div
-          class="pointer-events-none absolute left-7 top-8 z-10 max-w-[320px] md:left-10 md:top-10"
-        >
-          <p
-            class="mb-3 text-[10px] uppercase tracking-[0.22em] text-[#8a8a82]"
-          >
-            Конфигуратор трекового освещения
-          </p>
-          <p class="mt-3 max-w-57.5 text-[11px] leading-relaxed text-[#8a8a82]">
-            Введите параметры — список комплектующих обновится автоматически
-          </p>
-        </div>
-
-        <div
+          v-if="!showPhoto"
           class="pointer-events-none absolute right-7 top-10 z-10 hidden items-center gap-2 md:flex"
         >
           <span class="h-1.5 w-1.5 rounded-full bg-[#ff3300]"></span>
@@ -98,9 +107,29 @@ onBeforeUnmount(() => scene?.dispose());
           >
         </div>
 
+        <Transition name="slide-up">
+          <div
+            v-if="isLast"
+            class="pointer-events-none absolute top-8 left-8 z-20 hidden w-[320px] xl:block"
+          >
+            <div
+              class="pointer-events-auto overflow-hidden p-4 border border-white/60 bg-white/72 shadow-[0_20px_60px_-24px_rgba(0,0,0,0.25)] backdrop-blur-2xl"
+            >
+              <Details
+                :state="state"
+                :price="formattedPrice"
+                :disabled="!ready"
+                :estimate="estimateItems"
+                :estimate-total="estimateTotal"
+                @add="addToProject"
+              />
+            </div>
+          </div>
+        </Transition>
+
         <Transition name="fade">
           <div
-            v-if="!ready"
+            v-if="!ready && !showPhoto"
             class="absolute inset-0 z-20 flex items-center justify-center bg-[#eeede7]/95 px-8 text-center"
             role="status"
           >
@@ -126,6 +155,7 @@ onBeforeUnmount(() => scene?.dispose());
         </Transition>
 
         <div
+          v-if="!showPhoto"
           class="pointer-events-none absolute bottom-8 left-7 z-10 md:left-10"
         >
           <div class="mb-2 flex items-center gap-2">
@@ -143,6 +173,7 @@ onBeforeUnmount(() => scene?.dispose());
         </div>
 
         <div
+          v-if="!showPhoto"
           class="absolute bottom-23 left-1/2 z-10 -translate-x-1/2 sm:bottom-8"
         >
           <div
@@ -187,6 +218,7 @@ onBeforeUnmount(() => scene?.dispose());
         </div>
 
         <div
+          v-if="!showPhoto"
           class="pointer-events-none absolute bottom-8 right-7 z-10 hidden text-right text-[9px] leading-[1.8] text-[#8a8a82] xl:block"
         >
           <p>Удерживать за изделие — перемещение модели</p>
@@ -253,13 +285,13 @@ onBeforeUnmount(() => scene?.dispose());
   }
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 320ms ease;
+.photo-enter-active,
+.photo-leave-active {
+  transition: opacity 550ms ease;
 }
 
-.fade-enter-from,
-.fade-leave-to {
+.photo-enter-from,
+.photo-leave-to {
   opacity: 0;
 }
 

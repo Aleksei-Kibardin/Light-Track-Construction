@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { ConfiguratorState } from "../types/configurator";
+import { computed, ref } from "vue";
+import { finishes, type ConfiguratorState } from "../types/configurator";
 import {
-  estimateItems,
-  estimateTotal,
-  usePanelMocks,
-} from "../composables/usePanelMocks";
+  useWizard,
+  WIZARD_STEPS,
+  type WizardStep,
+} from "../composables/useWizard";
 
-import ShapeSection from "./panel/ShapeSection.vue";
-import LengthSection from "./panel/LengthSection.vue";
-import FinishSection from "./panel/FinishSection.vue";
-import FixturesSection from "./panel/FixturesSection.vue";
-import TemperatureSection from "./panel/TemperatureSection.vue";
-import Details from "./panel/Details.vue";
+import WizardProgress from "./panel/options/WizardProgress.vue";
+import StepMount from "./panel/steps/StepMount.vue";
+import StepColor from "./panel/steps/StepColor.vue";
+import StepShape from "./panel/steps/StepShape.vue";
+import StepOptions from "./panel/steps/StepOptions.vue";
 
 const props = defineProps<{
   state: ConfiguratorState;
@@ -24,26 +24,38 @@ const emit = defineEmits<{
   add: [];
 }>();
 
-import { MAX_FIXTURES, type FixtureType } from "../types/configurator";
+const { step, index, isFirst, isLast, next, prev } = useWizard();
 
-function addFixture(type: FixtureType) {
-  if (props.state.fixtures.length >= MAX_FIXTURES) return;
-  emit("change", { fixtures: [...props.state.fixtures, type] });
+const direction = ref<"forward" | "back">("forward");
+
+const stepTransition = computed(() =>
+  direction.value === "forward" ? "step-forward" : "step-back",
+);
+
+function goNext() {
+  direction.value = "forward";
+  next();
 }
 
-function removeFixture(index: number) {
-  if (props.state.fixtures.length <= 1) return;
-  emit("change", {
-    fixtures: props.state.fixtures.filter((_, i) => i !== index),
-  });
+function goPrev() {
+  direction.value = "back";
+  prev();
 }
 
-const { sideA, sideB } = usePanelMocks();
+const stepTitle = computed(() => {
+  const titles: Record<WizardStep, string> = {
+    mount: "Тип монтажа",
+    color: "Цвет",
+    shape: "Форма трека",
+    options: "Настройки",
+  };
+  return titles[step.value];
+});
 </script>
 
 <template>
   <aside
-    class="flex h-full w-full max-w-100 flex-col overflow-y-auto bg-[#f6f5f1] p-8 text-[13px] leading-[1.4] text-[#111111] antialiased [font-features-['ss01','cv11','tnum']] max-[480px]:max-w-full max-[480px]:p-5"
+    class="flex h-full w-full max-w-[400px] flex-col overflow-hidden bg-[#f6f5f1] p-8 text-[13px] leading-[1.4] text-[#111111] antialiased [font-feature-settings:'ss01','cv11','tnum'] max-[480px]:max-w-full max-[480px]:p-5"
   >
     <header class="mb-9 flex items-start justify-between">
       <div>
@@ -61,73 +73,126 @@ const { sideA, sideB } = usePanelMocks();
       </span>
     </header>
 
-    <fieldset
-      :disabled="disabled"
-      class="m-0 flex flex-col gap-7 border-0 p-0 disabled:opacity-50"
-    >
-      <legend class="sr-only">Настройки трековой системы</legend>
+    <WizardProgress :current="index" :total="WIZARD_STEPS.length" />
 
-      <ShapeSection
-        :model-value="state.trackType"
-        @change="emit('change', { trackType: $event })"
-      />
+    <Transition :name="stepTransition" mode="out-in">
+      <h3
+        :key="step"
+        class="mb-5 text-[18px] font-medium leading-none tracking-[-0.045em]"
+      >
+        {{ stepTitle }}
+      </h3>
+    </Transition>
 
-      <LengthSection
-        :model-value="state.length"
-        :a="sideA"
-        :b="sideB"
-        @update:model-value="emit('change', { length: $event })"
-        @update:a="sideA = $event"
-        @update:b="sideB = $event"
-      />
+    <div class="relative min-h-0 flex-1 overflow-hidden">
+      <Transition :name="stepTransition" mode="out-in">
+        <div :key="step" class="h-full overflow-y-auto pr-1">
+          <StepMount
+            v-if="step === 'mount'"
+            :value="state.mount"
+            @change="emit('change', { mount: $event })"
+          />
 
-      <FinishSection
-        :model-value="state.color"
-        @change="emit('change', { color: $event })"
-      />
+          <StepColor
+            v-else-if="step === 'color'"
+            :value="state.color"
+            :mount="state.mount"
+            @change="emit('change', { color: $event })"
+          />
 
-      <FixturesSection
-        :fixtures="state.fixtures"
-        @add="addFixture"
-        @remove="removeFixture"
-      />
+          <StepShape
+            v-else-if="step === 'shape'"
+            :value="state.trackType"
+            @change="emit('change', { trackType: $event })"
+          />
 
-      <TemperatureSection
-        :model-value="state.temperature"
-        @update:model-value="emit('change', { temperature: $event })"
-      />
-    </fieldset>
+          <StepOptions
+            v-else-if="step === 'options'"
+            :state="state"
+            :price="price"
+            :disabled="disabled"
+            @change="emit('change', $event)"
+          />
+        </div>
+      </Transition>
+    </div>
 
-    <Details
-      :state="state"
-      :price="price"
-      :disabled="disabled"
-      :estimate="estimateItems"
-      :estimate-total="estimateTotal"
-      @add="emit('add')"
-    />
+    <div class="mt-auto flex flex-col gap-3 pt-6">
+      <div class="flex items-center gap-2">
+        <button
+          v-if="!isFirst"
+          type="button"
+          class="flex h-11 flex-1 items-center justify-center rounded-md border border-[#dcdad3] bg-transparent text-[11px] uppercase tracking-[0.14em] text-[#4b4b45] transition-colors duration-150 hover:border-[#b9b7ae] hover:text-[#111111]"
+          @click="goPrev"
+        >
+          Назад
+        </button>
+
+        <button
+          v-if="!isLast"
+          type="button"
+          class="group flex h-11 flex-[2] items-center justify-between rounded-md border-0 bg-[#111111] px-5 text-[11px] uppercase tracking-[0.14em] text-white transition-colors duration-150 hover:bg-black disabled:cursor-not-allowed disabled:bg-[#c9c7bf]"
+          :disabled="disabled"
+          @click="goNext"
+        >
+          <span>Далее</span>
+          <span
+            class="transition-transform duration-200 group-hover:translate-x-1"
+            aria-hidden="true"
+          >
+            →
+          </span>
+        </button>
+      </div>
+    </div>
   </aside>
 </template>
 
 <style scoped>
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+.step-forward-enter-active,
+.step-forward-leave-active,
+.step-back-enter-active,
+.step-back-leave-active {
+  will-change: transform, opacity, filter;
 }
 
-.config-panel :focus-visible,
-:deep(.range):focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px #f6f5f1,
-    0 0 0 4px #111111;
-  border-radius: 6px;
+.step-forward-enter-active,
+.step-back-enter-active {
+  transition:
+    opacity 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 340ms ease;
+}
+
+.step-forward-leave-active,
+.step-back-leave-active {
+  transition:
+    opacity 220ms cubic-bezier(0.4, 0, 1, 1),
+    transform 280ms cubic-bezier(0.4, 0, 1, 1),
+    filter 220ms ease;
+}
+
+.step-forward-enter-from {
+  opacity: 0;
+  transform: translateX(32px);
+  filter: blur(6px);
+}
+
+.step-forward-leave-to {
+  opacity: 0;
+  transform: translateY(-24px) scale(0.96);
+  filter: blur(8px);
+}
+
+.step-forward-enter-from {
+  opacity: 0;
+  transform: translateY(32px);
+  filter: blur(8px);
+}
+
+.step-back-leave-to {
+  opacity: 0;
+  transform: translateX(36px);
+  filter: blur(6px);
 }
 </style>

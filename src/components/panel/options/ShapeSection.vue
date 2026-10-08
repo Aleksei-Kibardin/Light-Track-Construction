@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { TrackType } from '../../types/configurator'
+import type { TrackType } from '../../../types/configurator'
 
 defineProps<{ modelValue: TrackType }>()
 

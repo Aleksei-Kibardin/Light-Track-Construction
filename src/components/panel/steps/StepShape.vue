@@ -1,0 +1,42 @@
+<script setup lang="ts">
+import type { TrackType } from "../../../types/configurator"
+
+defineProps<{ value: TrackType }>()
+const emit = defineEmits<{ change: [value: TrackType] }>()
+
+const shapes: { type: TrackType; name: string; path: string }[] = [
+  { type: "line", name: "Линия", path: "M5 15H27" },
+  { type: "l", name: "Угол", path: "M6 7H25V24" },
+  { type: "u", name: "U-тип", path: "M6 24V7H26V24" },
+  { type: "p", name: "Прямоугольник", path: "M8 8H24V24H8Z" },
+]
+</script>
+
+<template>
+  <div class="grid grid-cols-2 gap-2">
+    <button
+      v-for="shape in shapes"
+      :key="shape.type"
+      type="button"
+      class="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-md border border-[#dcdad3] bg-transparent text-[#8a8a82] transition-[border-color,color,background-color] duration-150 hover:border-[#b9b7ae] hover:text-[#4b4b45]"
+      :class="
+        value === shape.type
+          ? 'border-[#111111] bg-[#111111] text-black'
+          : ''
+      "
+      @click="emit('change', shape.type)"
+    >
+      <svg viewBox="0 0 32 32" class="h-1/3 w-1/3" aria-hidden="true">
+        <path
+          :d="shape.path"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.3"
+          stroke-linecap="square"
+          stroke-linejoin="miter"
+        />
+      </svg>
+      <span class="text-[9px] tracking-[0.12em]">{{ shape.name }}</span>
+    </button>
+  </div>
+</template>

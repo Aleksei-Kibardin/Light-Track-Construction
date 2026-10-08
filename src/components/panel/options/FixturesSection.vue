@@ -3,7 +3,7 @@ import {
   FIXTURE_TYPES,
   MAX_FIXTURES,
   type FixtureType,
-} from "../../types/configurator"
+} from "../../../types/configurator"
 
 const props = defineProps<{
   fixtures: FixtureType[]
