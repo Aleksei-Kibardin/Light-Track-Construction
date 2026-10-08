@@ -55,7 +55,7 @@ const stepTitle = computed(() => {
 
 <template>
   <aside
-    class="flex h-full w-full max-w-[400px] flex-col overflow-hidden bg-[#f6f5f1] p-8 text-[13px] leading-[1.4] text-[#111111] antialiased [font-feature-settings:'ss01','cv11','tnum'] max-[480px]:max-w-full max-[480px]:p-5"
+    class="flex h-full w-full max-w-[400px] flex-col overflow-hidden bg-[#fff] p-8 text-[13px] leading-[1.4] text-[#111111] antialiased [font-feature-settings:'ss01','cv11','tnum'] max-[480px]:max-w-full max-[480px]:p-5"
   >
     <header class="mb-9 flex items-start justify-between">
       <div>

@@ -59,7 +59,7 @@ onBeforeUnmount(() => scene?.dispose());
     class="mobile-scroll flex min-h-screen flex-col bg-[#f6f5f1] text-[#111111] antialiased lg:h-screen"
   >
     <header
-      class="relative z-30 flex items-center gap-5 border-b border-[#e6e4dc] bg-[#f6f5f1]/85 px-8 py-5.5 backdrop-blur-md"
+      class="relative z-30 flex items-center gap-5 border-b border-[#e6e4dc] bg-[#fff]/85 px-8 py-5.5 backdrop-blur-md"
     >
       <a
         href="./"
