@@ -2,12 +2,12 @@ import type { TrackMount, Finish } from "../types/configurator"
 
 export const TRACK_PHOTOS: Record<TrackMount, Record<Finish, string>> = {
   surface: {
-    black: "/src/assets/photos/surface-black.png",
-    white: "/src/assets/photos/surface-white.png",
+    black: "/photos/surface-black.png",
+    white: "/photos/surface-white.png",
   },
   recessed: {
-    black: "/src/assets/photos/recessed-black.jpg",
-    white: "/src/assets/photos/recessed-white.jpg",
+    black: "/photos/recessed-black.jpg",
+    white: "/photos/recessed-white.jpg",
   },
 }
 
