@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { finishes, type ConfiguratorState } from "../types/configurator";
+import {type ConfiguratorState } from "../types/configurator";
 import {
   useWizard,
   WIZARD_STEPS,

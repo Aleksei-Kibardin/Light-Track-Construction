@@ -10,6 +10,7 @@ export function useConfigurator() {
     fractions: Array.from({ length: 8 }, (_, i) => (i + 0.5) / 4),
     temperature: 3000,
     rotation: 0,
+    mount: "surface"
   });
 
   const price = computed(() =>

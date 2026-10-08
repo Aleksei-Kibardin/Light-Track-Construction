@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { type ConfiguratorState } from "../../../types/configurator";
 import {
-  estimateItems,
-  estimateTotal,
   usePanelMocks,
 } from "../../../composables/usePanelMocks";
 
